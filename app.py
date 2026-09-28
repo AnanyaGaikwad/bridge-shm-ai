@@ -579,7 +579,7 @@ def main():
     st.sidebar.info(
         f"**Neural Engine:** PyTorch\n\n"
         f"**Compute Device:** `{pipeline.device}`\n\n"
-        f"**Sensors Monitored:** 8 Triaxial Accelerometers\n\n"
+        f"**Sensors Monitored:** 8 Distributed Accelerometer Channels\n\n"
         f"**Sampling Rate:** {pipeline.fs} Hz\n\n"
         f"**Window Size:** {pipeline.window_size} samples ({pipeline.window_size/pipeline.fs:.2f}s)\n\n"
         f"**Model Status:** {'Calibrated & Ready' if pipeline.is_trained else 'Untrained'}"
@@ -596,8 +596,12 @@ def main():
     )
     pipeline.predictor.sensitivity = sensitivity
     if pipeline.predictor.is_calibrated:
-        base_thresh = pipeline.predictor.mean_error + 2.5 * pipeline.predictor.std_error
-        pipeline.predictor.threshold = base_thresh / sensitivity
+        # Use the threshold calibrated and saved with the trained checkpoint.
+        # Sensitivity only adjusts that calibrated baseline; it must not replace
+        # the calibration with an unrelated mean + 2.5*std heuristic.
+        if not hasattr(pipeline.predictor, "_calibrated_base_threshold"):
+            pipeline.predictor._calibrated_base_threshold = float(pipeline.predictor.threshold)
+        pipeline.predictor.threshold = pipeline.predictor._calibrated_base_threshold / sensitivity
 
     # =========================================================================
     # MODULE 1: LIVE SIMULATION & DAMAGE STUDIO
@@ -904,7 +908,7 @@ def main():
                     "Location (m)": f"{s.location_m:.1f} m",
                     "Span": f"Span {s.span_index + 1}",
                     "Description": s.description,
-                    "Sensor Type": "Triaxial Accelerometer (MEMS)",
+                    "Sensor Type": "Distributed Accelerometer Channel",
                 }
                 for s in sim.sensors
             ])
@@ -983,19 +987,52 @@ def main():
             st.metric("Trainable Parameters", f"{trainable_params:,}")
 
         with col_a2:
-            st.subheader("Benchmark Performance on Test Scenarios")
-            eval_metrics = pd.DataFrame({
-                "Metric": ["ROC-AUC", "PR-AUC (Avg Precision)", "F1-Score", "Detection Recall", "Precision", "False Alarm Rate (FAR)"],
-                "Value": ["0.992", "0.988", "0.965", "97.4%", "95.6%", "1.8%"],
-                "Industry Target": ["> 0.950", "> 0.900", "> 0.900", "> 95.0%", "> 90.0%", "< 5.0%"],
-            })
-            st.dataframe(eval_metrics, use_container_width=True, hide_index=True)
+            st.subheader("Held-Out Synthetic Benchmark")
+            metrics_path = "artifacts/evaluation_metrics.json"
+            if os.path.exists(metrics_path):
+                import json
+                with open(metrics_path, "r", encoding="utf-8") as f:
+                    benchmark = json.load(f)
+
+                pct = lambda x: f"{100.0 * x:.1f}%"
+                eval_metrics = pd.DataFrame({
+                    "Metric": [
+                        "ROC-AUC",
+                        "PR-AUC (Average Precision)",
+                        "F1-Score",
+                        "Detection Recall",
+                        "Precision",
+                        "False Alarm Rate (FAR)",
+                    ],
+                    "Value": [
+                        f"{benchmark['roc_auc']:.3f}",
+                        f"{benchmark['pr_auc']:.3f}",
+                        f"{benchmark['f1_score']:.3f}",
+                        pct(benchmark['recall']),
+                        pct(benchmark['precision']),
+                        pct(benchmark['false_alarm_rate']),
+                    ],
+                })
+                st.dataframe(eval_metrics, use_container_width=True, hide_index=True)
+                st.caption(
+                    f"{benchmark['evaluation_set']['num_windows']} windows: "
+                    f"{benchmark['evaluation_set']['healthy_windows']} healthy + "
+                    f"{benchmark['evaluation_set']['anomalous_windows']} anomalous. "
+                    "Metrics are computed from the saved checkpoint on held-out synthetic simulation runs."
+                )
+            else:
+                st.info(
+                    "Benchmark metrics have not been generated yet. Run `python quickstart.py` "
+                    "once to create artifacts/evaluation_metrics.json."
+                )
 
             st.markdown(
                 """
                 > [!NOTE]
-                > The model is trained purely on **unsupervised healthy baseline data**. 
-                > It flags structural anomalies by detecting when physical vibration eigenmodes depart from the healthy subspace.
+                > The model is trained purely on **unsupervised healthy baseline data**.
+                > The benchmark uses separate synthetic simulation runs generated after training.
+                > These results demonstrate performance within the synthetic environment and are not
+                > validation on real-world bridge deployments.
                 """
             )
 
@@ -1026,8 +1063,7 @@ def main():
     elif menu == "Custom Sensor Data":
         st.header("Custom Sensor Data Analysis & Upload")
         st.markdown(
-            "Upload external bridge accelerometer vibration data (CSV format) from physical IoT sensors, "
-            "Z24 benchmark datasets, or custom finite element simulations."
+            "Upload external bridge acceleration datasets (CSV format) or custom finite element simulation output."
         )
 
         col_u1, col_u2 = st.columns([2, 1])

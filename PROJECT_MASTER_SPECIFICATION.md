@@ -58,7 +58,7 @@ Traditional SHM relies on periodic visual inspection (every 1–4 years), which 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    DATA ACQUISITION LAYER                           │
-│  8 x Triaxial MEMS Accelerometers @ 100 Hz sampling rate           │
+│  8 distributed MEMS accelerometer channels @ 100 Hz sampling rate           │
 │  Sensor positions: 25m, 45m, 60m, 85m, 110m, 135m, 160m, 190m     │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │ Raw accelerations [8 x T] m/s²
@@ -293,7 +293,7 @@ Save pipeline bundle to checkpoints/bridge_shm_pipeline.pt
 | **Sampling Rate** | 100 Hz |
 | **Time step** | dt = 10 ms |
 | **Nyquist Frequency** | 50 Hz |
-| **Sensor Count** | 8 channels (triaxial MEMS accelerometers) |
+| **Sensor Count** | 8 distributed accelerometer channels |
 | **Signal Units** | m/s² (acceleration) |
 
 #### 2.2.2 Butterworth Bandpass Filter
@@ -1065,13 +1065,13 @@ Live parameter counts:
 **Right column — Benchmark Performance**:
 ```
 st.dataframe:
-  Metric             | Value  | Industry Target
-  ROC-AUC            | 0.992  | > 0.950
-  PR-AUC             | 0.988  | > 0.900
-  F1-Score           | 0.965  | > 0.900
-  Detection Recall   | 97.4%  | > 95.0%
-  Precision          | 95.6%  | > 90.0%
-  False Alarm Rate   | 1.8%   | < 5.0%
+  Metric             | Value  | Evaluation Context
+  ROC-AUC            | 0.924  | Held-out synthetic demo benchmark
+  PR-AUC             | 0.854  | Held-out synthetic demo benchmark
+  F1-Score           | 0.473  | Calibrated threshold
+  Detection Recall   | 31.9%  | Calibrated threshold
+  Precision          | 91.7%  | Calibrated threshold
+  False Alarm Rate   | 1.8%   | Healthy windows in benchmark
 ```
 
 **Retraining Expander**:
@@ -1301,7 +1301,7 @@ Interpretation:
 6. **Module 2 — Error Timeline**: Clear spike above red threshold dashed line after t=15s
 7. **Module 2 — Attribution Heatmap**: **S5_S2M bar tallest** — correctly localizes damage at 110m
 
-**Key message**: *"At t=15s, we inject 35% stiffness loss at 110 meters. The autoencoder immediately detects the change — error spikes above threshold, SHI drops to Warning, and the attribution heatmap correctly points to S5_S2M at the exact damage location."*
+**Key message**: *"At t=15s, we inject a 35% crack scenario at 110 meters. The autoencoder produces elevated reconstruction error, the SHI responds to the change, and sensor attribution identifies the most affected sensor region."*
 
 #### Phase 3B: Breathing Crack (Nonlinear Harmonic Distortion)
 
@@ -1349,7 +1349,7 @@ Interpretation:
      15.68           | 0.03241              | True         | 63.4             | Warning | S5_S2M
      ```
 
-**Key message**: *"Module 5 connects BridgeGuard AI to any real-world sensor network. Whether it's Z24 benchmark data, FEM simulation output, or live IoT accelerometer streams, the pipeline handles channel adaptation, automatic time-column detection, and produces a timestamped window-by-window diagnostic report ready for maintenance management system integration."*
+**Key message**: *"Module 5 accepts external bridge acceleration datasets or custom simulation output, applies the same preprocessing and inference pipeline, and produces a timestamped window-by-window diagnostic report. Real-world deployment requires additional sensor/channel validation."*
 
 ---
 

@@ -91,29 +91,69 @@ def main():
     df_damaged.to_csv("data/sample_damaged.csv", index=False)
     print("      Saved 'data/sample_damaged.csv'")
 
-    # 4. Run Model Evaluation
+    # 4. Run Model Evaluation on the two held-out synthetic benchmark runs.
+    # These runs are generated after training and are not part of the healthy
+    # training/validation windows. The evaluator computes metrics directly
+    # from the saved checkpoint rather than relying on dashboard constants.
     print("[4/4] Evaluating Deep Learning Anomaly Detection & Health Scoring...")
-    
-    # Process healthy test run
-    times_h, assess_h, _ = pipeline.process_continuous_signal(sim_healthy["accelerations"])
-    avg_shi_h = np.mean([a.health_index for a in assess_h])
-    anom_count_h = sum(1 for a in assess_h if a.is_anomaly)
-    print(f"\n  --- Healthy Scenario Results ---")
-    print(f"  Average Structural Health Index (SHI): {avg_shi_h:.1f}% / 100%")
-    print(f"  Total Windows: {len(assess_h)} | Flagged Anomalies: {anom_count_h} (False Alarm Rate: {anom_count_h/len(assess_h):.1%})")
 
-    # Process damaged test run
-    times_d, assess_d, _ = pipeline.process_continuous_signal(sim_damaged["accelerations"])
-    # Windows after damage injection (time > 15s)
-    damaged_windows = [a for t, a in zip(times_d, assess_d) if t >= 16.0]
-    avg_shi_d = np.mean([a.health_index for a in damaged_windows])
-    detected_d = sum(1 for a in damaged_windows if a.is_anomaly)
-    
-    print(f"\n  --- Damaged Scenario Results (Crack @ Midspan 2) ---")
-    print(f"  Post-damage Structural Health Index: {avg_shi_d:.1f}% (Status: {damaged_windows[-1].status})")
-    print(f"  Detection Sensitivity (Recall): {detected_d}/{len(damaged_windows)} ({detected_d/len(damaged_windows):.1%})")
-    print(f"  Most Damaged Sensor Identified: {damaged_windows[-1].most_affected_sensor}")
-    print(f"  Attribution to S5_S2M (Sensor at 110m): {damaged_windows[-1].sensor_attribution.get('S5_S2M', 0.0):.1%}")
+    eval_windows = []
+    eval_labels = []
+
+    for sim_result in (sim_healthy, sim_damaged):
+        filt = butter_bandpass_filter(sim_result["accelerations"], fs=100.0)
+        windows, labels, _ = create_sliding_windows(
+            filt,
+            window_size=pipeline.window_size,
+            step_size=pipeline.step_size,
+            labels=sim_result["damage_labels"],
+            health_index=sim_result["health_index"],
+        )
+        eval_windows.append(pipeline.scaler.transform(windows))
+        eval_labels.append(labels)
+
+    eval_windows = np.concatenate(eval_windows, axis=0)
+    eval_labels = np.concatenate(eval_labels, axis=0)
+
+    evaluator = ModelEvaluator(pipeline.model, pipeline.predictor, device=pipeline.device)
+    result = evaluator.evaluate(
+        eval_windows,
+        eval_labels,
+        sensor_names=pipeline.sensor_names,
+    )
+
+    os.makedirs("artifacts", exist_ok=True)
+    import json
+    metrics_artifact = {
+        "benchmark": "held-out synthetic demo benchmark",
+        "checkpoint": pipeline_ckpt,
+        "threshold": result.threshold,
+        "roc_auc": result.roc_auc,
+        "pr_auc": result.pr_auc,
+        "precision": result.precision,
+        "recall": result.recall,
+        "f1_score": result.f1_score,
+        "false_alarm_rate": result.false_alarm_rate,
+        "accuracy": result.accuracy,
+        "confusion_matrix": result.confusion_matrix,
+        "evaluation_set": {
+            "num_windows": int(len(eval_labels)),
+            "healthy_windows": int(np.sum(eval_labels == 0)),
+            "anomalous_windows": int(np.sum(eval_labels == 1)),
+            "healthy_run": "60s, traffic=1.2x, temperature=24C, seed=101",
+            "damaged_run": "60s, crack at 110m, severity=0.35, damage starts at 15s, seed=202",
+        },
+    }
+    with open("artifacts/evaluation_metrics.json", "w", encoding="utf-8") as f:
+        json.dump(metrics_artifact, f, indent=2)
+
+    print("\n  --- Held-Out Synthetic Benchmark ---")
+    print(f"  Windows: {len(eval_labels)} ({np.sum(eval_labels == 0)} healthy / {np.sum(eval_labels == 1)} anomalous)")
+    print(f"  ROC-AUC: {result.roc_auc:.3f} | PR-AUC: {result.pr_auc:.3f}")
+    print(f"  F1: {result.f1_score:.3f} | Recall: {result.recall:.1%} | Precision: {result.precision:.1%}")
+    print(f"  False Alarm Rate: {result.false_alarm_rate:.1%}")
+    print(f"  Confusion Matrix: {result.confusion_matrix}")
+    print("  Saved 'artifacts/evaluation_metrics.json'")
 
     print("\n" + "=" * 70)
     print("  PIPELINE READY! Launch Streamlit dashboard with:")
