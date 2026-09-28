@@ -104,10 +104,10 @@ streamlit run app.py
 ```
 Or with custom port:
 ```bash
-streamlit run app.py --server.port 8501
+streamlit run app.py --server.port 8502
 ```
 
-Access the dashboard at: **http://localhost:8501**
+Access the dashboard at: **http://localhost:8502**
 
 ---
 
