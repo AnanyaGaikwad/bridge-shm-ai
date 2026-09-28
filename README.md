@@ -1,6 +1,6 @@
 # 🌉 BridgeGuard AI: Deep Learning Bridge Structural Health Monitoring (SHM)
 
-A production-grade Deep Learning system for **continuous multi-sensor vibration anomaly detection**, **dynamic damage localization**, and **Structural Health Index (SHI) prediction** for highway and railway bridges.
+A physics-informed Deep Learning prototype for **continuous multi-sensor vibration anomaly detection**, **dynamic damage localization**, and **Structural Health Index (SHI) prediction** for highway and railway bridges.
 
 ---
 
@@ -12,12 +12,12 @@ A production-grade Deep Learning system for **continuous multi-sensor vibration 
   - Dynamic breathing crack impact (non-linear $2\omega_0$ and $4\omega_0$ harmonics).
   - Pier bearing seizure (restraint/support degradation).
 - **Hybrid Conv1D-BiLSTM Autoencoder**:
-  - **Encoder**: Multi-scale 1D Dilated Convolutions extract spatial-temporal modal wavelets across 8 triaxial accelerometer channels, followed by Bidirectional LSTM layers capturing modal decay and dynamic reverberation.
+  - **Encoder**: Multi-scale 1D Convolutions extract spatial-temporal modal wavelets across 8 distributed accelerometer channels, followed by Bidirectional LSTM layers capturing modal decay and dynamic reverberation.
   - **Bottleneck**: Low-dimensional latent space capturing normal bridge operational manifolds.
   - **Decoder**: Symmetrical BiLSTM + ConvTranspose1D reconstructing multi-sensor acceleration waveforms.
 - **Traffic-Invariant RMS Energy Normalization**: Eliminates false alarms caused by traffic volume surges (e.g. 40-ton truck vs 1.5-ton car) while magnifying structural mode shape and frequency anomalies.
 - **Dynamic Statistical Thresholding**: Calibrates extreme value anomaly thresholds $\tau$ and computes continuous Structural Health Index ($SHI \in [0\%, 100\%]$).
-- **Sensor-Level Damage Localization**: Attributes reconstruction error across individual sensor stations to pinpoint the exact damaged span/pier.
+- **Sensor-Level Damage Localization**: Attributes reconstruction error across individual sensor stations to identify the most affected sensor region.
 - **Interactive Streamlit Web Dashboard**: Real-time 2D bridge digital twin, oscilloscope waveforms, FFT frequency spectrum, damage injection studio, SHI gauge, and drag-and-drop CSV importer.
 
 ---
@@ -133,7 +133,7 @@ Access the dashboard at: **http://localhost:8501**
    - ROC-AUC, PR-AUC, F1-Score, and false alarm rate benchmarks.
    - Interactive model retraining panel with custom hyperparameters.
 5. **📂 Custom Sensor Data CSV**:
-   - Drag-and-drop CSV uploader for physical bridge sensor streams (e.g. Z24 benchmark).
+   - Drag-and-drop CSV uploader for external bridge acceleration datasets.
    - Automated preprocessing, neural inference, and downloadable PDF/CSV diagnostic reports.
 
 ---
