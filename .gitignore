@@ -1,0 +1,21 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python Cache & Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE & OS Metadata
+.DS_Store
+.vscode/
+.idea/
+.gemini/
+
+# Temporary logs & Streamlit runtime
+.streamlit/v1/
+*.log
