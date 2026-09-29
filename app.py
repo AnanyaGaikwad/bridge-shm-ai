@@ -659,7 +659,7 @@ def main():
         run_sim = st.button("Run Physics Simulation & AI Health Diagnosis", type="primary", use_container_width=True)
 
         # Store simulation results in session state
-        if run_sim or "sim_data" not in st.session_state:
+        if run_sim or "sim_res" not in st.session_state:
             with st.spinner("Executing dynamic modal simulation and deep learning inference..."):
                 sim_engine = BridgeSimulator(sampling_rate=100.0)
                 scenario = BridgeDamageScenario(
