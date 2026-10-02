@@ -759,11 +759,54 @@ def main():
         sim_res = st.session_state["sim_res"]
 
         # Aggregate Statistics
-        recent_assessments = assessments[-15:] if len(assessments) >= 15 else assessments
-        latest_shi = np.mean([a.health_index for a in recent_assessments])
-        total_anomalies = sum(1 for a in assessments if a.is_anomaly)
-        anomaly_ratio = total_anomalies / max(1, len(assessments))
-        latest_status = assessments[-1].status
+        damage = sim_res.get("damage_scenario")
+
+        if (
+            isinstance(damage, dict)
+            and float(damage.get("severity", 0.0)) > 0.0
+            and float(damage.get("start_time_s", 0.0)) > 0.0
+        ):
+            damage_start = float(damage["start_time_s"])
+
+            relevant_assessments = [
+                assessment
+                for time, assessment in zip(ai_times, assessments)
+                if time >= damage_start
+            ]
+        else:
+            relevant_assessments = assessments
+
+        if relevant_assessments:
+            latest_shi = float(
+                np.mean(
+                    [
+                        assessment.health_index
+                        for assessment in relevant_assessments
+                    ]
+                )
+            )
+        else:
+            latest_shi = 100.0
+
+        total_anomalies = sum(
+            1
+            for assessment in assessments
+            if assessment.is_anomaly
+        )
+
+        anomaly_ratio = total_anomalies / max(
+            1,
+            len(assessments),
+        )
+
+        if latest_shi >= 88.0:
+            latest_status = "Healthy"
+        elif latest_shi >= 72.0:
+            latest_status = "Advisory"
+        elif latest_shi >= 48.0:
+            latest_status = "Warning"
+        else:
+            latest_status = "Critical"
 
         # KPI Dashboard
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -783,12 +826,49 @@ def main():
                 delta_color="inverse" if anomaly_ratio > 0.15 else "normal",
             )
         with kpi3:
-            max_err = max(a.anomaly_score for a in assessments)
+            damage = sim_res.get("damage_scenario")
+
+            if (
+                isinstance(damage, dict)
+                and float(damage.get("severity", 0.0)) > 0.0
+                and float(damage.get("start_time_s", 0.0)) > 0.0
+            ):
+                damage_start = float(damage["start_time_s"])
+
+                relevant_errors = [
+                    assessment.anomaly_score
+                    for time, assessment in zip(
+                        ai_times,
+                        assessments,
+                    )
+                    if time >= damage_start
+                ]
+            else:
+                relevant_errors = [
+                    assessment.anomaly_score
+                    for assessment in assessments
+                ]
+
+            if relevant_errors:
+                reconstruction_error_display = float(
+                    np.percentile(
+                        relevant_errors,
+                        95,
+                    )
+                )
+            else:
+                reconstruction_error_display = 0.0
+
             st.metric(
-                label="Peak Reconstruction Error",
-                value=f"{max_err:.4f}",
+                label="Post-Onset Reconstruction Error",
+                value=f"{reconstruction_error_display:.4f}",
                 delta=f"Threshold: {assessments[0].threshold:.4f}",
-                delta_color="inverse" if max_err > assessments[0].threshold else "normal",
+                delta_color=(
+                    "inverse"
+                    if reconstruction_error_display
+                    > assessments[0].threshold
+                    else "normal"
+                ),
             )
         with kpi4:
             most_damaged = assessments[-1].most_affected_sensor

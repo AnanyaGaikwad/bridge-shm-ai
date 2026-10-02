@@ -2,18 +2,18 @@
   "benchmark": "held-out synthetic demo benchmark",
   "checkpoint": "checkpoints/bridge_shm_pipeline.pt",
   "threshold": 0.2615886330604553,
-  "roc_auc": 0.924,
-  "pr_auc": 0.8536,
-  "precision": 0.9167,
-  "recall": 0.3188,
-  "f1_score": 0.4731,
+  "roc_auc": 0.9785,
+  "pr_auc": 0.9215,
+  "precision": 0.9394,
+  "recall": 0.4493,
+  "f1_score": 0.6078,
   "false_alarm_rate": 0.018,
-  "accuracy": 0.7278,
+  "accuracy": 0.7778,
   "confusion_matrix": {
     "TN": 109,
     "FP": 2,
-    "FN": 47,
-    "TP": 22
+    "FN": 38,
+    "TP": 31
   },
   "evaluation_set": {
     "num_windows": 180,

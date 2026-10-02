@@ -188,6 +188,7 @@ class BridgeSHMPipeline:
             "scaler_mean": self.scaler.mean,
             "scaler_std": self.scaler.std,
             "predictor_threshold": self.predictor.threshold,
+            "predictor_base_threshold": self.predictor.base_threshold,
             "predictor_mean": self.predictor.mean_error,
             "predictor_std": self.predictor.std_error,
             "num_sensors": self.num_sensors,
@@ -217,6 +218,10 @@ class BridgeSHMPipeline:
         self.scaler.std = bundle["scaler_std"]
 
         self.predictor.threshold = bundle["predictor_threshold"]
+        self.predictor.base_threshold = bundle.get(
+        "predictor_base_threshold",
+        self.predictor.threshold,
+        )
         self.predictor.mean_error = bundle["predictor_mean"]
         self.predictor.std_error = bundle["predictor_std"]
         self.predictor.is_calibrated = True
